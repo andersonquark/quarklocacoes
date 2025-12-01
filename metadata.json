@@ -1,0 +1,7 @@
+{
+  "name": "AndaimesPro",
+  "description": "Gestão premium de aluguel de andaimes com design fluido, assinaturas digitais e insights via IA.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
