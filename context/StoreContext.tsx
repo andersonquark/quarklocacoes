@@ -154,7 +154,7 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
                 clientName: o.client_name,
                 status: o.status,
                 createdAt: o.created_at,
-                deliveryDate: o.delivery_date,
+                delivery_date: o.delivery_date,
                 returnDate: o.return_date,
                 street: o.street,
                 number: o.number,
@@ -189,10 +189,11 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
   const fetchCompanySettings = async () => {
       if(isSupabaseConfigured) {
           try {
-              const { data, error } = await supabase.from('company_settings').select('*').limit(1).single();
+              // use maybeSingle to avoid errors on empty tables
+              const { data, error } = await supabase.from('company_settings').select('*').limit(1).maybeSingle();
               if(data) {
                   setCompanySettings({
-                      id: data.id,
+                      id: String(data.id), // Ensure it is a string
                       name: data.name,
                       cnpj: data.cnpj,
                       phone: data.phone,
@@ -205,7 +206,7 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
                       zipCode: data.zip_code
                   });
               }
-          } catch (e) { console.error(e); }
+          } catch (e) { console.error("Error fetching company settings:", e); }
       } else {
           setCompanySettings(getLocalData('company_settings', DEFAULT_COMPANY_SETTINGS));
       }
@@ -494,7 +495,6 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
   const updateCompanySettings = async (settings: CompanySettings) => {
       if(isSupabaseConfigured) {
           try {
-             // Upsert functionality. We assume id '1' or single row logic for simplicity in this MVP
              const dbSettings = {
                  name: settings.name,
                  cnpj: settings.cnpj,
@@ -510,14 +510,16 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
              
              // If ID exists update, else insert
              if(settings.id) {
-                 await supabase.from('company_settings').update(dbSettings).eq('id', settings.id);
+                 const { error } = await supabase.from('company_settings').update(dbSettings).eq('id', settings.id);
+                 if (error) throw error;
              } else {
-                 await supabase.from('company_settings').insert([dbSettings]);
+                 const { error } = await supabase.from('company_settings').insert([dbSettings]);
+                 if (error) throw error;
              }
              await fetchCompanySettings();
-          } catch(e) {
-              console.error(e);
-              alert("Erro ao salvar configurações online.");
+          } catch(e: any) {
+              console.error("Erro ao salvar config:", e);
+              alert("Erro ao salvar configurações online: " + e.message);
           }
       } else {
           setCompanySettings(settings);
