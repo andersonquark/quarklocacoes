@@ -1,0 +1,7 @@
+{
+  "name": "Quark Locações",
+  "description": "Sistema completo de gestão para locação de andaimes e equipamentos, com controle de estoque, pedidos, contratos e financeiro.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
