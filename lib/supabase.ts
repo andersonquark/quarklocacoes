@@ -8,8 +8,17 @@ const PROVIDED_KEY = 'sb_publishable_2x7LMH3h7LEGdTY4_qWmBQ_jFEWJ69i';
 const storedUrl = localStorage.getItem('quark_supabase_url');
 const storedKey = localStorage.getItem('quark_supabase_key');
 
-const envUrl = process.env.REACT_APP_SUPABASE_URL;
-const envKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+// Helper para ler variáveis de ambiente de forma segura
+const getEnv = (key: string) => {
+  try {
+    return typeof process !== 'undefined' ? process.env[key] : undefined;
+  } catch (e) {
+    return undefined;
+  }
+};
+
+const envUrl = getEnv('REACT_APP_SUPABASE_URL');
+const envKey = getEnv('REACT_APP_SUPABASE_ANON_KEY');
 
 // Define a URL e Key finais.
 // Ordem de prioridade: LocalStorage > Variáveis de Ambiente > Hardcoded (Suas chaves)

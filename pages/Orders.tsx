@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { printOrder } from '../lib/printHandler';
 
 const Orders = () => {
-  const { orders, updateOrderStatus, equipment } = useStore();
+  const { orders, updateOrderStatus, equipment, companySettings } = useStore();
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -75,7 +75,7 @@ const Orders = () => {
   
   const handlePrint = () => {
       if (selectedOrder) {
-          printOrder(selectedOrder, equipment);
+          printOrder(selectedOrder, equipment, companySettings);
       }
   };
 

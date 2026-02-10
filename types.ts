@@ -20,6 +20,20 @@ export interface Address {
   reference?: string;
 }
 
+export interface CompanySettings {
+  id?: string;
+  name: string;
+  cnpj: string;
+  phone: string;
+  email: string;
+  street: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
 export interface Client extends Address {
   id: string;
   name: string; // Razão social or Name

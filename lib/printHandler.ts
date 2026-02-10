@@ -1,6 +1,14 @@
-import { Order, Equipment } from '../types';
 
-export const printOrder = (order: Order, equipmentList: Equipment[]) => {
+import { Order, Equipment, CompanySettings } from '../types';
+
+export const printOrder = (order: Order, equipmentList: Equipment[], companySettings?: CompanySettings) => {
+  // Dados da Empresa (Fallback se não fornecido)
+  const companyName = companySettings?.name || 'QUARK LOCAÇÕES';
+  const companyCnpj = companySettings?.cnpj || '00.000.000/0001-00';
+  const companyAddress = companySettings?.street 
+    ? `${companySettings.street}, ${companySettings.number} - ${companySettings.neighborhood}, ${companySettings.city}/${companySettings.state}`
+    : 'Rua da Sede, 123 - Centro';
+
   // Cláusulas padrão de contrato de locação
   const contractTerms = `
     1. OBJETO: O presente contrato tem como objeto a locação dos bens móveis descritos neste documento.
@@ -48,10 +56,10 @@ export const printOrder = (order: Order, equipmentList: Equipment[]) => {
       <!-- Cabeçalho -->
       <div class="flex justify-between items-center border-b-2 border-gray-800 pb-6 mb-6">
         <div>
-           <h1 class="text-3xl font-bold text-gray-900">QUARK LOCAÇÕES</h1>
+           <h1 class="text-3xl font-bold text-gray-900 uppercase">${companyName}</h1>
            <p class="text-sm text-gray-500">Locação de Andaimes e Equipamentos</p>
-           <p class="text-sm text-gray-500">CNPJ: 00.000.000/0001-00</p>
-           <p class="text-sm text-gray-500">Rua da Sede, 123 - Centro</p>
+           <p class="text-sm text-gray-500">CNPJ: ${companyCnpj}</p>
+           <p class="text-sm text-gray-500">${companyAddress}</p>
         </div>
         <div class="text-right">
            <h2 class="text-xl font-bold text-gray-800">${order.type === 'ORCAMENTO' ? 'ORÇAMENTO' : 'CONTRATO DE LOCAÇÃO'}</h2>
@@ -149,7 +157,7 @@ export const printOrder = (order: Order, equipmentList: Equipment[]) => {
          </div>
          <div class="text-center">
              <div class="border-b border-black mb-2 h-16"></div>
-             <p class="font-bold text-sm uppercase">Quark Locações</p>
+             <p class="font-bold text-sm uppercase">${companyName}</p>
              <p class="text-xs text-gray-500">Locador</p>
          </div>
       </div>

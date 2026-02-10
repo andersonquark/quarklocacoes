@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { Plus, Search, Edit2, AlertTriangle, Package, DollarSign } from 'lucide-react';
+import { Plus, Search, Edit2, AlertTriangle, Package, DollarSign, Trash2 } from 'lucide-react';
 import { Equipment } from '../types';
 
 const Inventory = () => {
-  const { equipment, addEquipment, updateEquipment, getEquipmentStock } = useStore();
+  const { equipment, addEquipment, updateEquipment, deleteEquipment, getEquipmentStock } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
@@ -53,7 +54,12 @@ const Inventory = () => {
       await addEquipment(formData);
     }
     setIsModalOpen(false);
-    // Optional: Add a toast here
+  };
+  
+  const handleDelete = async (id: string, name: string) => {
+      if(window.confirm(`Tem certeza que deseja excluir "${name}"? Esta ação não pode ser desfeita.`)) {
+          await deleteEquipment(id);
+      }
   };
 
   return (
@@ -90,7 +96,6 @@ const Inventory = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredEquipment.map(item => {
           const stock = getEquipmentStock(item.id);
-          const isLowStock = stock.available < stock.total * 0.2;
 
           return (
             <div key={item.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-lg hover:border-blue-100 transition-all group">
@@ -131,12 +136,20 @@ const Inventory = () => {
                    <div className="text-lg font-bold text-gray-900">
                      R$ {item.priceMonthly.toFixed(2)} <span className="text-xs font-medium text-gray-400">/mês</span>
                    </div>
-                   <button 
-                    onClick={() => handleOpenModal(item)}
-                    className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                   >
-                     <Edit2 className="w-5 h-5" />
-                   </button>
+                   <div className="flex gap-2">
+                       <button 
+                        onClick={() => handleOpenModal(item)}
+                        className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                       >
+                         <Edit2 className="w-5 h-5" />
+                       </button>
+                       <button 
+                        onClick={() => handleDelete(item.id, item.name)}
+                        className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                       >
+                         <Trash2 className="w-5 h-5" />
+                       </button>
+                   </div>
                 </div>
               </div>
             </div>

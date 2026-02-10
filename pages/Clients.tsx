@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Client, Order } from '../types';
-import { Search, Plus, Edit2, Phone, Mail, MapPin, User, FileText, ArrowLeft, Download, Eye } from 'lucide-react';
+import { Search, Plus, Edit2, Phone, Mail, MapPin, User, FileText, ArrowLeft, Download, Eye, Trash2 } from 'lucide-react';
 import { printOrder } from '../lib/printHandler';
 
 const Clients = () => {
-  const { clients, addClient, updateClient, orders, equipment } = useStore();
+  const { clients, addClient, updateClient, deleteClient, orders, equipment, companySettings } = useStore();
   const [view, setView] = useState<'LIST' | 'DETAILS'>('LIST');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   
@@ -71,6 +71,13 @@ const Clients = () => {
     }
     setIsModalOpen(false);
   };
+  
+  const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
+      e.stopPropagation(); // Prevent opening details
+      if(window.confirm(`Tem certeza que deseja excluir o cliente "${name}"? Esta ação não pode ser desfeita.`)) {
+          await deleteClient(id);
+      }
+  };
 
   const getClientStats = (clientId: string) => {
     const clientOrders = orders.filter(o => o.clientId === clientId);
@@ -113,9 +120,11 @@ const Clients = () => {
                  <p className="flex items-center text-gray-600"><Mail className="w-4 h-4 mr-2"/> {selectedClient.email}</p>
                  <p className="flex items-center text-gray-600"><MapPin className="w-4 h-4 mr-2"/> {formatAddress(selectedClient)}</p>
              </div>
-             <button onClick={() => handleOpenModal(selectedClient)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors">
-                 Editar Dados
-             </button>
+             <div className="flex gap-2">
+                 <button onClick={() => handleOpenModal(selectedClient)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors">
+                     Editar Dados
+                 </button>
+             </div>
          </div>
 
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -166,7 +175,7 @@ const Clients = () => {
                                      </div>
                                      <div className="flex space-x-2">
                                          <button 
-                                            onClick={() => printOrder(order, equipment)}
+                                            onClick={() => printOrder(order, equipment, companySettings)}
                                             className="p-2 text-gray-500 hover:text-blue-600 bg-gray-50 rounded" 
                                             title="Visualizar / Imprimir"
                                          >
@@ -234,6 +243,12 @@ const Clients = () => {
                     <p className="text-xs text-gray-500">{client.document}</p>
                   </div>
                 </div>
+                <button 
+                    onClick={(e) => handleDelete(e, client.id, client.name)}
+                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
               </div>
 
               <div className="space-y-3 text-sm text-gray-600 mb-6">

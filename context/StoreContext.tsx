@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Equipment, Client, Order, OrderStatus } from '../types';
+import { Equipment, Client, Order, OrderStatus, CompanySettings } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { MOCK_EQUIPMENT, MOCK_CLIENTS, MOCK_ORDERS } from '../data/mockData';
 
@@ -7,13 +8,17 @@ interface StoreContextType {
   equipment: Equipment[];
   clients: Client[];
   orders: Order[];
+  companySettings: CompanySettings;
   refreshData: () => Promise<void>;
   addEquipment: (item: Equipment) => Promise<Equipment>;
   updateEquipment: (item: Equipment) => Promise<void>;
+  deleteEquipment: (id: string) => Promise<void>;
   addClient: (client: Client) => Promise<Client>;
   updateClient: (client: Client) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
   addOrder: (order: Order) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: OrderStatus, signatureUrl?: string, obs?: string) => Promise<void>;
+  updateCompanySettings: (settings: CompanySettings) => Promise<void>;
   getEquipmentStock: (id: string) => { total: number; available: number; rented: number; reserved: number };
   resetLocalData: () => void;
   isDemoMode: boolean;
@@ -21,10 +26,24 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
+  name: 'Quark Locações',
+  cnpj: '00.000.000/0001-00',
+  phone: '(00) 0000-0000',
+  email: 'contato@quark.com.br',
+  street: 'Rua da Sede',
+  number: '123',
+  neighborhood: 'Centro',
+  city: 'Cidade',
+  state: 'UF',
+  zipCode: '00000-000'
+};
+
 export const StoreProvider = ({ children }: { children?: ReactNode }) => {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
   
   // If Supabase is explicitly configured (even manually via UI), start in online mode
   const [isDemoMode, setIsDemoMode] = useState(!isSupabaseConfigured);
@@ -43,14 +62,15 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
       localStorage.removeItem('quark_equipment');
       localStorage.removeItem('quark_clients');
       localStorage.removeItem('quark_orders');
+      localStorage.removeItem('quark_company_settings');
       setEquipment(MOCK_EQUIPMENT);
       setClients(MOCK_CLIENTS);
       setOrders(MOCK_ORDERS);
+      setCompanySettings(DEFAULT_COMPANY_SETTINGS);
       window.location.reload();
   };
 
   const fetchEquipment = async () => {
-    // If we have a valid config, try to fetch online
     if (isSupabaseConfigured) {
         try {
             const { data, error } = await supabase.from('equipment').select('*');
@@ -78,12 +98,9 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
               return;
             }
         } catch (err) {
-            console.error("Failed to fetch equipment online, falling back to local if needed", err);
-            // Don't auto-fallback if we want to be online, but for UX safety we might
+            console.error("Failed to fetch equipment online", err);
         }
     }
-    
-    // Fallback or Demo Mode
     setEquipment(prev => prev.length > 0 ? prev : getLocalData('equipment', MOCK_EQUIPMENT));
     if(!isSupabaseConfigured) setIsDemoMode(true);
   };
@@ -150,6 +167,7 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
                 shippingCost: Number(o.shipping_cost),
                 totalAmount: Number(o.total_amount),
                 billingPeriod: o.billing_period,
+                paymentMethod: o.payment_method,
                 observations: o.observations,
                 signatureUrl: o.signature_url,
                 items: o.order_items.map((i: any) => ({
@@ -168,8 +186,33 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
     setOrders(prev => prev.length > 0 ? prev : getLocalData('orders', MOCK_ORDERS));
   };
 
+  const fetchCompanySettings = async () => {
+      if(isSupabaseConfigured) {
+          try {
+              const { data, error } = await supabase.from('company_settings').select('*').limit(1).single();
+              if(data) {
+                  setCompanySettings({
+                      id: data.id,
+                      name: data.name,
+                      cnpj: data.cnpj,
+                      phone: data.phone,
+                      email: data.email,
+                      street: data.street,
+                      number: data.number,
+                      neighborhood: data.neighborhood,
+                      city: data.city,
+                      state: data.state,
+                      zipCode: data.zip_code
+                  });
+              }
+          } catch (e) { console.error(e); }
+      } else {
+          setCompanySettings(getLocalData('company_settings', DEFAULT_COMPANY_SETTINGS));
+      }
+  };
+
   const refreshData = async () => {
-    await Promise.all([fetchEquipment(), fetchClients(), fetchOrders()]);
+    await Promise.all([fetchEquipment(), fetchClients(), fetchOrders(), fetchCompanySettings()]);
   };
 
   useEffect(() => {
@@ -190,10 +233,9 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
     }
   }, [isSupabaseConfigured]);
 
-  // --- Actions with Persistence ---
+  // --- Actions ---
 
   const addEquipment = async (item: Equipment): Promise<Equipment> => {
-    // Online Path
     if (isSupabaseConfigured) {
         try {
             const { id, ...rest } = item; 
@@ -216,11 +258,8 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
             return { ...item, id: data.id };
         } catch (err) {
             console.error("Online add failed", err);
-            // Only fallback if not forcing online strictness, but let's fallback to keep app usable
         }
     }
-
-    // Offline/Demo Path
     const newItem = { ...item, id: `eq-${Date.now()}` };
     const updated = [...equipment, newItem];
     setEquipment(updated);
@@ -252,10 +291,40 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
              console.error("Online update failed", err);
          }
      }
-     
      const updated = equipment.map(e => e.id === item.id ? item : e);
      setEquipment(updated);
      saveLocalData('equipment', updated);
+  };
+
+  const deleteEquipment = async (id: string) => {
+      // Check for active orders using this equipment
+      const hasActiveOrders = orders.some(o => 
+          o.status !== OrderStatus.COMPLETED && 
+          o.status !== OrderStatus.CANCELLED && 
+          o.items.some(i => i.equipmentId === id)
+      );
+
+      if(hasActiveOrders) {
+          alert("Não é possível excluir equipamento com locações ativas.");
+          return;
+      }
+
+      if (isSupabaseConfigured) {
+          try {
+              const { error } = await supabase.from('equipment').delete().eq('id', id);
+              if(error) throw error;
+              fetchEquipment();
+              return;
+          } catch(err) {
+              console.error(err);
+              alert("Erro ao excluir equipamento no banco de dados.");
+              return;
+          }
+      }
+
+      const updated = equipment.filter(e => e.id !== id);
+      setEquipment(updated);
+      saveLocalData('equipment', updated);
   };
 
   const addClient = async (client: Client): Promise<Client> => {
@@ -283,7 +352,6 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
             console.error(err);
         }
     }
-    
     const newClient = { ...client, id: `cli-${Date.now()}` };
     const updated = [...clients, newClient];
     setClients(updated);
@@ -316,8 +384,32 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
             console.error(err);
         }
     }
-
     const updated = clients.map(c => c.id === client.id ? client : c);
+    setClients(updated);
+    saveLocalData('clients', updated);
+  };
+
+  const deleteClient = async (id: string) => {
+    const hasOrders = orders.some(o => o.clientId === id);
+    if(hasOrders) {
+        alert("Não é possível excluir cliente que possui histórico de pedidos.");
+        return;
+    }
+
+    if (isSupabaseConfigured) {
+        try {
+            const { error } = await supabase.from('clients').delete().eq('id', id);
+            if(error) throw error;
+            fetchClients();
+            return;
+        } catch(err) {
+            console.error(err);
+            alert("Erro ao excluir cliente.");
+            return;
+        }
+    }
+
+    const updated = clients.filter(c => c.id !== id);
     setClients(updated);
     saveLocalData('clients', updated);
   };
@@ -344,6 +436,7 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
               shipping_cost: order.shippingCost,
               total_amount: order.totalAmount,
               billing_period: order.billingPeriod,
+              payment_method: order.paymentMethod,
               observations: order.observations
             };
 
@@ -363,7 +456,6 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
             console.error(err);
         }
     }
-
     const newOrder = { ...order, id: `ord-${Date.now()}` };
     const updated = [newOrder, ...orders];
     setOrders(updated);
@@ -399,6 +491,40 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
     saveLocalData('orders', updated);
   };
 
+  const updateCompanySettings = async (settings: CompanySettings) => {
+      if(isSupabaseConfigured) {
+          try {
+             // Upsert functionality. We assume id '1' or single row logic for simplicity in this MVP
+             const dbSettings = {
+                 name: settings.name,
+                 cnpj: settings.cnpj,
+                 phone: settings.phone,
+                 email: settings.email,
+                 street: settings.street,
+                 number: settings.number,
+                 neighborhood: settings.neighborhood,
+                 city: settings.city,
+                 state: settings.state,
+                 zip_code: settings.zipCode
+             };
+             
+             // If ID exists update, else insert
+             if(settings.id) {
+                 await supabase.from('company_settings').update(dbSettings).eq('id', settings.id);
+             } else {
+                 await supabase.from('company_settings').insert([dbSettings]);
+             }
+             await fetchCompanySettings();
+          } catch(e) {
+              console.error(e);
+              alert("Erro ao salvar configurações online.");
+          }
+      } else {
+          setCompanySettings(settings);
+          saveLocalData('company_settings', settings);
+      }
+  };
+
   const getEquipmentStock = (id: string) => {
     const item = equipment.find(e => e.id === id);
     if (!item) return { total: 0, available: 0, rented: 0, reserved: 0 };
@@ -421,8 +547,8 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
 
   return (
     <StoreContext.Provider value={{
-      equipment, clients, orders, refreshData, addEquipment, updateEquipment, 
-      addClient, updateClient, addOrder, updateOrderStatus, getEquipmentStock, resetLocalData, isDemoMode
+      equipment, clients, orders, companySettings, refreshData, addEquipment, updateEquipment, deleteEquipment,
+      addClient, updateClient, deleteClient, addOrder, updateOrderStatus, updateCompanySettings, getEquipmentStock, resetLocalData, isDemoMode
     }}>
       {children}
     </StoreContext.Provider>
